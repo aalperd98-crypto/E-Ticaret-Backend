@@ -15,6 +15,8 @@ return [
     |
     */
 
+    'timebox_duration' => 700_000,
+
     'defaults' => [
         'guard' => env('AUTH_GUARD', 'web'),
         'passwords' => env('AUTH_PASSWORD_BROKER', 'users'),
