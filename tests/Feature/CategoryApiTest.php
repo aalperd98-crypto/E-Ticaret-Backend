@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Category;
+use App\Models\Product;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
 use Tests\Concerns\CreatesAdminUsers;
@@ -166,6 +167,17 @@ class CategoryApiTest extends TestCase
             ->assertJsonValidationErrors('category');
 
         $this->assertDatabaseHas('categories', ['id' => $parent->id]);
+    }
+
+    public function test_urunu_olan_kategori_silinemiyor(): void
+    {
+        $category = Category::factory()->create();
+        Product::factory()->create(['category_id' => $category->id]);
+
+        $this->actingAsAdmin()
+            ->deleteJson("/api/categories/{$category->slug}")
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('category');
     }
 
     public function test_bos_kategori_silinebiliyor(): void

@@ -15,6 +15,7 @@ class CategoryController extends Controller
     public function index(Request $request)
     {
         $categories = Category::query()
+            ->withCount('products')
             ->when($request->filled('parent_id'), fn ($query) => $query->where('parent_id', $request->integer('parent_id')))
             ->when($request->boolean('roots'), fn ($query) => $query->whereNull('parent_id'))
             ->orderBy('title')
@@ -31,7 +32,7 @@ class CategoryController extends Controller
 
     public function show(Category $category)
     {
-        $category->load(['parent', 'children']);
+        $category->loadCount('products')->load(['parent', 'children']);
 
         return new CategoryResource($category);
     }
@@ -50,9 +51,9 @@ class CategoryController extends Controller
 
     public function destroy(Category $category)
     {
-        if ($category->children()->exists()) {
+        if ($category->children()->exists() || $category->products()->exists()) {
             throw ValidationException::withMessages([
-                'category' => ['Alt kategorileri olan bir kategori silinemez.'],
+                'category' => ['Alt kategorileri veya ürünleri olan bir kategori silinemez.'],
             ]);
         }
 
