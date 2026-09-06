@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CategoryController;
+use App\Http\Controllers\Api\ProductController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -19,4 +20,5 @@ Route::middleware(['auth:sanctum', 'role:admin', 'throttle:60,1'])->group(functi
     Route::get('/categories/tree', [CategoryController::class, 'tree']);
 
     Route::apiResource('categories', CategoryController::class);
+    Route::apiResource('products', ProductController::class);
 });
