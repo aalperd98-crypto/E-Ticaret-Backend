@@ -21,6 +21,7 @@ class RegisterRequest extends FormRequest
             'email' => ['required', 'string', 'email', 'max:255', 'unique:users,email'],
             'phone' => ['required', 'string', 'max:20'],
             'password' => ['required', 'string', 'min:8'],
+            'cart_token' => ['sometimes', 'nullable', 'string', 'uuid'],
         ];
     }
 
@@ -45,6 +46,7 @@ class RegisterRequest extends FormRequest
             'email' => 'e-posta',
             'phone' => 'telefon',
             'password' => 'şifre',
+            'cart_token' => 'sepet kimliği',
         ];
     }
 }

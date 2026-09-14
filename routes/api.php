@@ -24,6 +24,8 @@ Route::middleware('throttle:60,1')->group(function () {
     Route::post('/cart/items', [CartController::class, 'store']);
     Route::patch('/cart/items/{item}', [CartController::class, 'update'])->whereNumber('item');
     Route::delete('/cart/items/{item}', [CartController::class, 'destroy'])->whereNumber('item');
+
+    Route::post('/cart/merge', [CartController::class, 'merge'])->middleware('auth:sanctum');
 });
 
 Route::middleware(['auth:sanctum', 'role:admin', 'throttle:60,1'])->group(function () {

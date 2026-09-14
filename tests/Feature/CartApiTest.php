@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Cart;
 use App\Models\Product;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -145,6 +146,109 @@ class CartApiTest extends TestCase
         $this->postJson('/api/cart/items', ['product_id' => 9999])
             ->assertStatus(422)
             ->assertJsonValidationErrors('product_id');
+    }
+
+    public function test_giris_yaparken_ziyaretci_sepeti_hesaba_gecer(): void
+    {
+        $user = User::factory()->create();
+        $token = $this->addAsGuest($this->product(), 2)->json('data.token');
+
+        $response = $this->postJson('/api/login', [
+            'email' => $user->email,
+            'password' => 'password',
+            'cart_token' => $token,
+        ])->assertOk()
+            ->assertJsonPath('cart.user_id', $user->id)
+            ->assertJsonPath('cart.total_quantity', 2);
+
+        $this->assertSame($token, $response->json('cart.token'));
+        $this->assertDatabaseHas('carts', ['token' => $token, 'user_id' => $user->id]);
+    }
+
+    public function test_kullaniciya_gecen_sepet_artik_kimlikle_acilamaz(): void
+    {
+        $user = User::factory()->create();
+        $token = $this->addAsGuest($this->product())->json('data.token');
+
+        $this->postJson('/api/login', [
+            'email' => $user->email,
+            'password' => 'password',
+            'cart_token' => $token,
+        ])->assertOk();
+
+        $this->withHeader('X-Cart-Token', $token)->getJson('/api/cart')
+            ->assertOk()
+            ->assertJsonPath('data.token', null)
+            ->assertJsonPath('data.items_count', 0);
+    }
+
+    public function test_mevcut_kullanici_sepetiyle_birlestirilir(): void
+    {
+        $user = User::factory()->create();
+        $shared = $this->product();
+        $onlyGuest = $this->product();
+
+        $userCart = Cart::factory()->forUser($user)->create();
+        $userCart->items()->create(['product_id' => $shared->id, 'quantity' => 1]);
+
+        $guestToken = $this->addAsGuest($shared, 2)->json('data.token');
+        $this->addAsGuest($onlyGuest, 1, $guestToken);
+
+        $this->postJson('/api/login', [
+            'email' => $user->email,
+            'password' => 'password',
+            'cart_token' => $guestToken,
+        ])->assertOk()
+            ->assertJsonPath('cart.items_count', 2)
+            ->assertJsonPath('cart.total_quantity', 4);
+
+        $this->assertDatabaseMissing('carts', ['token' => $guestToken]);
+    }
+
+    public function test_kayit_olurken_de_sepet_devralinir(): void
+    {
+        $token = $this->addAsGuest($this->product(), 3)->json('data.token');
+
+        $this->postJson('/api/register', [
+            'name' => 'Alper Dur',
+            'email' => 'alper@example.com',
+            'phone' => '5550000000',
+            'password' => 'sifre1234',
+            'cart_token' => $token,
+        ])->assertStatus(201)
+            ->assertJsonPath('cart.total_quantity', 3);
+    }
+
+    public function test_sepet_kimligi_olmadan_giris_yapan_kullanici_icin_sepet_bos_kalir(): void
+    {
+        $user = User::factory()->create();
+
+        $this->postJson('/api/login', ['email' => $user->email, 'password' => 'password'])
+            ->assertOk()
+            ->assertJsonPath('cart', null);
+
+        $this->assertDatabaseCount('carts', 0);
+    }
+
+    public function test_merge_ucu_giris_yapmis_kullanici_icin_calisir(): void
+    {
+        $user = User::factory()->create();
+        $token = $this->addAsGuest($this->product(), 2)->json('data.token');
+
+        Sanctum::actingAs($user);
+
+        $this->postJson('/api/cart/merge', ['cart_token' => $token])
+            ->assertOk()
+            ->assertJsonPath('data.user_id', $user->id)
+            ->assertJsonPath('data.total_quantity', 2);
+    }
+
+    public function test_merge_ucu_anonim_istekte_401_doner(): void
+    {
+        $cart = Cart::factory()->create();
+
+        $this->postJson('/api/cart/merge', ['cart_token' => $cart->token])
+            ->assertStatus(401);
     }
 
     public function test_kullanici_sepeti_oturuma_bagli_kalir(): void

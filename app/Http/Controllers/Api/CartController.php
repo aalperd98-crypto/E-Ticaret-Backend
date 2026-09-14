@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Cart\MergeCartRequest;
 use App\Http\Requests\Cart\StoreCartItemRequest;
 use App\Http\Requests\Cart\UpdateCartItemRequest;
 use App\Http\Resources\CartResource;
@@ -19,6 +20,7 @@ use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
  *
  * Ziyaretçi ilk eklemede bir sepet kimliği (token) alır ve sonraki isteklerde
  * bunu `X-Cart-Token` başlığıyla ya da `cart_token` alanıyla geri gönderir.
+ * Kullanıcı giriş yaptığında bu kimlik hesabına devredilir.
  */
 class CartController extends Controller
 {
@@ -88,6 +90,17 @@ class CartController extends Controller
         $cart->touch();
 
         return $this->respondWithCart($cart);
+    }
+
+    /**
+     * Giriş yaptıktan sonra elde kalan ziyaretçi sepetini hesaba devreder.
+     * Giriş isteğinde `cart_token` gönderilmediyse bu uç kullanılabilir.
+     */
+    public function merge(MergeCartRequest $request)
+    {
+        $cart = Cart::claim($request->input('cart_token'), $request->user('sanctum'));
+
+        return $cart ? $this->respondWithCart($cart) : $this->respondWithEmptyCart();
     }
 
     /**

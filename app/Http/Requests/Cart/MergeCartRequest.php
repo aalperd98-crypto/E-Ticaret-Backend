@@ -1,10 +1,10 @@
 <?php
 
-namespace App\Http\Requests\Auth;
+namespace App\Http\Requests\Cart;
 
 use Illuminate\Foundation\Http\FormRequest;
 
-class LoginRequest extends FormRequest
+class MergeCartRequest extends FormRequest
 {
     public function authorize(): bool
     {
@@ -17,9 +17,7 @@ class LoginRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'email' => ['required', 'string', 'email'],
-            'password' => ['required', 'string'],
-            'cart_token' => ['sometimes', 'nullable', 'string', 'uuid'],
+            'cart_token' => ['required', 'string', 'uuid'],
         ];
     }
 
@@ -29,8 +27,6 @@ class LoginRequest extends FormRequest
     public function attributes(): array
     {
         return [
-            'email' => 'e-posta',
-            'password' => 'şifre',
             'cart_token' => 'sepet kimliği',
         ];
     }

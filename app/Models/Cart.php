@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 #[Fillable(['user_id', 'token'])]
@@ -55,6 +56,59 @@ class Cart extends Model
         }
 
         return static::query()->whereNull('user_id')->where('token', $token)->first();
+    }
+
+    /**
+     * Ziyaretçi sepetini kullanıcıya devreder ve kullanıcının güncel sepetini döner.
+     *
+     * Devredilecek bir şey yoksa (token yok ve kullanıcının sepeti de yoksa)
+     * boş yere satır oluşturmamak için null döner.
+     */
+    public static function claim(?string $token, User $user): ?self
+    {
+        return DB::transaction(function () use ($token, $user): ?self {
+            $guestCart = static::findByToken($token);
+            $userCart = static::query()->where('user_id', $user->getKey())->first();
+
+            if (! $guestCart) {
+                return $userCart;
+            }
+
+            if (! $userCart) {
+                $guestCart->update(['user_id' => $user->getKey()]);
+
+                return $guestCart;
+            }
+
+            $userCart->mergeFrom($guestCart);
+
+            return $userCart;
+        });
+    }
+
+    /**
+     * Verilen sepetin ürünlerini bu sepete taşır ve kaynağı siler.
+     *
+     * Aynı üründen iki sepette de varsa adetler toplanır. Stok kontrolü
+     * burada yapılmaz; ekleme/güncelleme uçları ve sipariş adımı bunu zaten doğrular.
+     */
+    public function mergeFrom(self $source): void
+    {
+        DB::transaction(function () use ($source): void {
+            $current = $this->items()->pluck('quantity', 'product_id');
+
+            foreach ($source->items()->get() as $item) {
+                $this->items()->updateOrCreate(
+                    ['product_id' => $item->product_id],
+                    ['quantity' => min(
+                        ($current[$item->product_id] ?? 0) + $item->quantity,
+                        self::MAX_QUANTITY_PER_ITEM,
+                    )],
+                );
+            }
+
+            $source->delete();
+        });
     }
 
     public function totalQuantity(): int
